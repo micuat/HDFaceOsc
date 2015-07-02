@@ -38,6 +38,31 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
         private BodyFrameReader bodyReader = null;
 
         /// <summary>
+        /// Array to store bodies
+        /// </summary>
+        private Body[] bodies = null;
+
+        /// <summary>
+        /// Number of bodies tracked
+        /// </summary>
+        private int bodyCount;
+
+        /// <summary>
+        /// Face frame sources
+        /// </summary>
+        private FaceFrameSource faceFrameSource = null;
+
+        /// <summary>
+        /// Face frame readers
+        /// </summary>
+        private FaceFrameReader faceFrameReader = null;
+
+        /// <summary>
+        /// Storage for face frame results
+        /// </summary>
+        private FaceFrameResult faceFrameResult = null;
+
+        /// <summary>
         /// HighDefinitionFaceFrameSource to get a reader and a builder from.
         /// Also to set the currently tracked user id to get High Definition Face Frames of
         /// </summary>
@@ -343,6 +368,31 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
             this.bodyReader = this.bodySource.OpenReader();
             this.bodyReader.FrameArrived += this.BodyReader_FrameArrived;
 
+            // set the maximum number of bodies that would be tracked by Kinect
+            this.bodyCount = this.sensor.BodyFrameSource.BodyCount;
+
+            // allocate storage to store body objects
+            this.bodies = new Body[this.bodyCount];
+
+            // specify the required face frame results
+            FaceFrameFeatures faceFrameFeatures =
+                FaceFrameFeatures.BoundingBoxInColorSpace
+                | FaceFrameFeatures.PointsInColorSpace
+                | FaceFrameFeatures.RotationOrientation
+                | FaceFrameFeatures.FaceEngagement
+                | FaceFrameFeatures.Glasses
+                | FaceFrameFeatures.Happy
+                | FaceFrameFeatures.LeftEyeClosed
+                | FaceFrameFeatures.RightEyeClosed
+                | FaceFrameFeatures.LookingAway
+                | FaceFrameFeatures.MouthMoved
+                | FaceFrameFeatures.MouthOpen;
+
+            // create a face frame source + reader to track each face in the FOV
+            this.faceFrameSource = new FaceFrameSource(this.sensor, 0, faceFrameFeatures);
+            this.faceFrameReader = faceFrameSource.OpenReader();
+            this.faceFrameReader.FrameArrived += this.Reader_FaceFrameArrived;
+
             this.highDefinitionFaceFrameSource = new HighDefinitionFaceFrameSource(this.sensor);
             this.highDefinitionFaceFrameSource.TrackingIdLost += this.HdFaceSource_TrackingIdLost;
 
@@ -492,9 +542,84 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
                 this.CurrentTrackingId = selectedBody.TrackingId;
 
                 this.highDefinitionFaceFrameSource.TrackingId = this.CurrentTrackingId;
+                this.faceFrameSource.TrackingId = this.CurrentTrackingId;
             }
         }
         
+        /// <summary>
+        /// Handles the face frame data arriving from the sensor
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void Reader_FaceFrameArrived(object sender, FaceFrameArrivedEventArgs e)
+        {
+            using (FaceFrame faceFrame = e.FrameReference.AcquireFrame())
+            {
+                if (faceFrame != null)
+                {
+                    // check if this face frame has valid face frame results
+                    if (this.ValidateFaceBoxAndPoints(faceFrame.FaceFrameResult))
+                    {
+                        // store this face frame result to draw later
+                        this.faceFrameResult = faceFrame.FaceFrameResult;
+                        var address = "/osceleton2/face";
+                        var q = this.faceFrameResult.FaceRotationQuaternion;
+                        OscMessage message = new OscMessage(address, q.W, q.X, q.Y, q.Z);
+                        if (oscSender != null)
+                            oscSender.Send(message);
+                    }
+                    else
+                    {
+                        // indicates that the latest face frame result from this reader is invalid
+                        this.faceFrameResult = null;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates face bounding box and face points to be within screen space
+        /// </summary>
+        /// <param name="faceResult">the face frame result containing face box and points</param>
+        /// <returns>success or failure</returns>
+        private bool ValidateFaceBoxAndPoints(FaceFrameResult faceResult)
+        {
+            bool isFaceValid = faceResult != null;
+
+            if (isFaceValid)
+            {
+                var faceBox = faceResult.FaceBoundingBoxInColorSpace;
+                if (faceBox != null)
+                {
+                    // check if we have a valid rectangle within the bounds of the screen space
+                    isFaceValid = (faceBox.Right - faceBox.Left) > 0 &&
+                                  (faceBox.Bottom - faceBox.Top) > 0;
+
+                    if (isFaceValid)
+                    {
+                        var facePoints = faceResult.FacePointsInColorSpace;
+                        if (facePoints != null)
+                        {
+                            foreach (PointF pointF in facePoints.Values)
+                            {
+                                // check if we have a valid face point within the bounds of the screen space
+                                bool isFacePointValid = pointF.X > 0.0f &&
+                                                        pointF.Y > 0.0f;
+
+                                if (!isFacePointValid)
+                                {
+                                    isFaceValid = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return isFaceValid;
+        }
+
         /// <summary>
         /// This event is fired when a tracking is lost for a body tracked by HDFace Tracker
         /// </summary>

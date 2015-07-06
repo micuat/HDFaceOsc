@@ -110,7 +110,7 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
 
         private OscSender oscSender;
         private string ipAddress = "127.0.0.1";
-        private int port = 57121;
+        private int remotePort = 57121;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -412,7 +412,7 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
         {
             try
             {
-                oscSender = new OscSender(IPAddress.Parse(ipAddress), this.port, 600, 20000);
+                oscSender = new OscSender(IPAddress.Parse(ipAddress), 0, this.remotePort, 600, 20000);
                 oscSender.Connect();
             }
             catch (Exception e)

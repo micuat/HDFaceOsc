@@ -110,7 +110,7 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
 
         private OscSender oscSender;
         private string ipAddress = "127.0.0.1";
-        private int remotePort = 57121;
+        private int remotePort = 57122;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -558,13 +558,37 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
                 if (faceFrame != null)
                 {
                     // check if this face frame has valid face frame results
-                    if (this.ValidateFaceBoxAndPoints(faceFrame.FaceFrameResult))
+                    if (this.ValidateFaceBoxAndPoints(faceFrame.FaceFrameResult) && faceFrame.TrackingId == this.currentTrackingId)
                     {
                         // store this face frame result to draw later
                         this.faceFrameResult = faceFrame.FaceFrameResult;
-                        var address = "/osceleton2/face";
+                        var address = "/osceleton2/face/rotation";
                         var q = this.faceFrameResult.FaceRotationQuaternion;
                         OscMessage message = new OscMessage(address, q.W, q.X, q.Y, q.Z);
+                        if (oscSender != null)
+                            oscSender.Send(message);
+
+                        var isHappy = this.faceFrameResult.FaceProperties[FaceProperty.Happy];
+                        int happy = -1;
+                        if (isHappy == DetectionResult.Yes)
+                        {
+                            happy = 2;
+                        }
+                        else if (isHappy == DetectionResult.Maybe)
+                        {
+                            happy = 1;
+                        }
+                        else if (isHappy == DetectionResult.No)
+                        {
+                            happy = 0;
+                        }
+                        address = "/osceleton2/face/happy";
+                        message = new OscMessage(address, happy);
+                        if (oscSender != null)
+                            oscSender.Send(message);
+
+                        address = "/osceleton2/face/id";
+                        message = new OscMessage(address, (int)this.currentTrackingId);
                         if (oscSender != null)
                             oscSender.Send(message);
                     }

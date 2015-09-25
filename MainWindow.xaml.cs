@@ -591,6 +591,26 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
                         message = new OscMessage(address, (int)this.currentTrackingId);
                         if (oscSender != null)
                             oscSender.Send(message);
+
+                        var isMouthOpen = this.faceFrameResult.FaceProperties[FaceProperty.MouthOpen];
+                        int mouthOpen = -1;
+                        if (isMouthOpen == DetectionResult.Yes)
+                        {
+                            mouthOpen = 2;
+                        }
+                        else if (isMouthOpen == DetectionResult.Maybe)
+                        {
+                            mouthOpen = 1;
+                        }
+                        else if (isMouthOpen == DetectionResult.No)
+                        {
+                            mouthOpen = 0;
+                        }
+                        address = "/osceleton2/face/mouthopen";
+                        message = new OscMessage(address, mouthOpen);
+                        if (oscSender != null)
+                            oscSender.Send(message);
+
                     }
                     else
                     {

@@ -463,27 +463,21 @@ namespace Microsoft.Samples.Kinect.HDFaceBasics
         {
             var vertices = this.currentFaceModel.CalculateVerticesForAlignment(this.currentFaceAlignment);
 
-            byte[] b = new byte[vertices.Count * 3 * 4];
+            byte[] b = new byte[vertices.Count * 3 * 2];
 
             for (int i = 0; i < vertices.Count; i++)
             {
                 var vert = vertices[i];
                 this.theGeometry.Positions[i] = new Point3D(vert.X, vert.Y, -vert.Z);
-                var bytes = BitConverter.GetBytes(vert.X);
-                b[i * 3 * 4 +  0] = bytes[0];
-                b[i * 3 * 4 +  1] = bytes[1];
-                b[i * 3 * 4 +  2] = bytes[2];
-                b[i * 3 * 4 +  3] = bytes[3];
-                bytes = BitConverter.GetBytes(vert.Y);
-                b[i * 3 * 4 +  4] = bytes[0];
-                b[i * 3 * 4 +  5] = bytes[1];
-                b[i * 3 * 4 +  6] = bytes[2];
-                b[i * 3 * 4 +  7] = bytes[3];
-                bytes = BitConverter.GetBytes(-vert.Z);
-                b[i * 3 * 4 +  8] = bytes[0];
-                b[i * 3 * 4 +  9] = bytes[1];
-                b[i * 3 * 4 + 10] = bytes[2];
-                b[i * 3 * 4 + 11] = bytes[3];
+                var bytes = BitConverter.GetBytes((short)((vert.X) * 1000));
+                b[i * 3 * 2 +  0] = bytes[0];
+                b[i * 3 * 2 +  1] = bytes[1];
+                bytes = BitConverter.GetBytes((short)((vert.Y) * 1000));
+                b[i * 3 * 2 +  2] = bytes[0];
+                b[i * 3 * 2 +  3] = bytes[1];
+                bytes = BitConverter.GetBytes((short)(-(vert.Z) * 1000));
+                b[i * 3 * 2 +  4] = bytes[0];
+                b[i * 3 * 2 +  5] = bytes[1];
             }
 
             var address = "/osceleton2/hdface";
